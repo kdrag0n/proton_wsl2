@@ -1081,6 +1081,13 @@ config CC_OPTIMIZE_FOR_PERFORMANCE
 	  with the "-O2" compiler flag for best performance and most
 	  helpful compile-time warnings.
 
+config CC_OPTIMIZE_HARDER
+	bool "Optimize harder"
+	help
+	  This option will pass "-O3" to your compiler resulting in a
+	  larger and faster kernel. The more complex optimizations also
+	  increase compilation time and may affect stability.
+
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size"
 	help
