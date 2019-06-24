@@ -1,0 +1,58 @@
+version: v1.0
+name: Proton Kernel for WSL 2
+agent:
+  machine:
+    type: e1-standard-8
+
+  containers:
+    - name: main
+      image: kdrag0n/arch-kbuild-x86:gcc-9.1.0
+
+blocks:
+  - name: Build and distribute the kernel
+    task:
+      # Pipeline configuration
+      env_vars:
+        # Build username
+        - name: KBUILD_BUILD_USER
+          value: buildbot
+
+        # Build hostname
+        - name: KBUILD_BUILD_HOST
+          value: semaphore-ci
+
+        # Telegram chat ID
+        # This is either the numerical ID or "@chat_username" (must be quoted)
+        - name: TG_CHAT_ID
+          value: "@proton_wsl2_ci"
+
+        # Telegram separator sticker file ID
+        - name: TG_SEPARATOR_ID
+          value: CAADBAADECAAAmSKPgABdzuMXreQcSwC
+
+        # Organization name on Semaphore CI
+        - name: SEM_ORG_NAME
+          value: kdrag0n
+
+        # Global job time limit
+        - name: JOB_TIMEOUT
+          value: 15m
+      # End configuration
+
+      secrets:
+        # Telegram bot token in TG_BOT_TOKEN environment variable
+        - name: tg-bot-token
+
+      prologue:
+        commands_file: prepare.sh
+
+      jobs:
+        - name: Compile kernel and finalize
+          commands_file: compile_and_finalize.sh
+
+      epilogue:
+        on_pass:
+          commands_file: distribute_product.sh
+
+        on_fail:
+          commands_file: notify_error.sh
