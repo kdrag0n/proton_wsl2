@@ -1,0 +1,125 @@
+---
+kind: pipeline
+name: default
+
+platform:
+  os: linux
+  arch: amd64
+
+clone:
+  disable: true
+
+steps:
+  - name: start_debug_server
+    image: kdrag0n/drone-ssh-debug:latest
+    detach: true
+
+    settings:
+      authorized_keys:
+        # authorized_keys for SSH debug server in ssh_authorized_keys secret
+        from_secret: ssh_authorized_keys
+
+    when:
+      event:
+        exclude:
+          - pull_request
+
+  - name: compare_changes
+    image: kdrag0n/fedora-kbuild:gcc-9.1.1
+
+    environment:
+      # Time limit
+      TIMEOUT: 2m
+
+    commands:
+      # Run .drone/compare_changes.sh from GitHub
+      - curl -Lsf "https://github.com/$DRONE_REPO_NAMESPACE/$DRONE_REPO_NAME/raw/$DRONE_COMMIT/.drone/compare_changes.sh" | timeout $TIMEOUT bash
+
+    when:
+      event:
+        exclude:
+          - pull_request
+
+  - name: clone
+    image: kdrag0n/fedora-kbuild:gcc-9.1.1
+
+    environment:
+      # Time limit
+      TIMEOUT: 5m
+
+    commands:
+      # Run .drone/clone.sh from GitHub
+      - curl -Lsf "https://github.com/$DRONE_REPO_NAMESPACE/$DRONE_REPO_NAME/raw/$DRONE_COMMIT/.drone/clone.sh" | timeout $TIMEOUT bash
+
+  - name: compile
+    image: kdrag0n/fedora-kbuild:gcc-9.1.1
+
+    environment:
+      # Build username
+      KBUILD_BUILD_USER: buildbot
+
+      # Build hostname
+      KBUILD_BUILD_HOST: drone-ci
+
+      # Time limit
+      TIMEOUT: 10m
+
+    commands:
+      - cd "$DRONE_REPO_NAME"
+      - timeout $TIMEOUT .drone/compile.sh
+
+    when:
+      event:
+        exclude:
+          - pull_request
+
+  - name: upload_to_telegram
+    image: kdrag0n/fedora-kbuild:gcc-9.1.1
+
+    environment:
+      # Telegram chat ID
+      # This is either the numerical ID or "@chat_username" (must be quoted)
+      TG_CHAT_ID: "@proton_wsl2_ci"
+
+      # Telegram separator sticker file ID
+      TG_SEPARATOR_ID: CAADBAADECAAAmSKPgABdzuMXreQcSwC
+
+      # Telegram bot token (stored in tg_bot_token secret)
+      TG_BOT_TOKEN:
+        from_secret: tg_bot_token
+
+      # Time limit
+      TIMEOUT: 2m
+
+    commands:
+      # Run .drone/telegram.sh from GitHub
+      # This is run from GitHub instead of the cloned repo because it may be
+      # reached without a working clone
+      - curl -Lsf "https://github.com/$DRONE_REPO_NAMESPACE/$DRONE_REPO_NAME/raw/$DRONE_COMMIT/.drone/telegram.sh" | timeout $TIMEOUT bash
+
+    when:
+      status:
+        - success
+        - failure
+      event:
+        exclude:
+          - pull_request
+
+  - name: wait_for_debug
+    image: alpine
+
+    environment:
+      # Amount of time to wait for debugging
+      # This is intended to serve as a brief preliminary analysis, not a
+      # full-fledged post-mortem analysis session
+      DEBUG_TIME: 1m
+
+    commands:
+      - sleep $DEBUG_TIME
+
+    when:
+      status:
+        - failure
+      event:
+        exclude:
+          - pull_request
