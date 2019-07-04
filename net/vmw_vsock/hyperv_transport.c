@@ -674,16 +674,12 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 {
 	struct hvsock *hvs = vsk->trans;
 	struct vmbus_channel *chan = hvs->chan;
-	struct hvs_send_buf *send_buf;
+	struct hvs_send_buf send_buf;
 	ssize_t to_write, max_writable;
 	ssize_t ret = 0;
 	ssize_t bytes_written = 0;
 
-	BUILD_BUG_ON(sizeof(*send_buf) != PAGE_SIZE_4K);
-
-	send_buf = kmalloc(sizeof(*send_buf), GFP_KERNEL);
-	if (!send_buf)
-		return -ENOMEM;
+	BUILD_BUG_ON(sizeof(send_buf) != PAGE_SIZE_4K);
 
 	/* Reader(s) could be draining data from the channel as we write.
 	 * Maximize bandwidth, by iterating until the channel is found to be
@@ -698,11 +694,11 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 		/* memcpy_from_msg is safe for loop as it advances the offsets
 		 * within the message iterator.
 		 */
-		ret = memcpy_from_msg(send_buf->data, msg, to_write);
+		ret = memcpy_from_msg(send_buf.data, msg, to_write);
 		if (ret < 0)
 			goto out;
 
-		ret = hvs_send_data(hvs->chan, send_buf, to_write);
+		ret = hvs_send_data(hvs->chan, &send_buf, to_write);
 		if (ret < 0)
 			goto out;
 
@@ -713,7 +709,6 @@ out:
 	/* If any data has been sent, return that */
 	if (bytes_written)
 		ret = bytes_written;
-	kfree(send_buf);
 	return ret;
 }
 

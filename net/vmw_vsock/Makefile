@@ -18,3 +18,4 @@ vmw_vsock_virtio_transport-y += virtio_transport.o
 vmw_vsock_virtio_transport_common-y += virtio_transport_common.o
 
 hv_sock-y += hyperv_transport.o
+CFLAGS_hyperv_transport.o += -Wframe-larger-than=8192
