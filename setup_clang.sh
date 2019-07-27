@@ -6,8 +6,8 @@
 # function. Nothing will happen if you execute it.
 #
 
-# Clang executable name
-clang_name="clang"
+# Path to executables in Clang toolchain
+clang_bin="$HOME/toolchains/proton-clang-10.0.0-20190723/bin"
 
 # Number of parallel jobs to run
 # Do not remove; set to 1 for no parallelism.
@@ -19,7 +19,10 @@ jobs=$(nproc)
 # Load the shared helpers
 source helpers.sh
 
-MAKEFLAGS+=(
-	CC="$clang_name"
-	KBUILD_COMPILER_STRING="$(get_clang_version "$clang_name")"
+export LD_LIBRARY_PATH="$clang_bin/../lib:$PATH"
+export PATH="$clang_bin:$PATH"
+
+kmake_flags+=(
+	CC="clang"
+	KBUILD_COMPILER_STRING="$(get_clang_version clang)"
 )
